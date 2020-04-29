@@ -86,21 +86,28 @@ if __name__ == '__main__':
         device, compatible = expanded
         return index.get(compatible)
 
-    devices_expanded = sorted(
+    requests = (
         [(device, compatible)
          for device in devices
-         for compatible in device.compatible
-         if compatible in index],
-        key=match_module
+         for compatible in device.compatible]
     )
+
+
+    requests_matched = [request for request in requests if request[1] in index]
+    devices_matched = set([request[0].name for request in requests_matched])
 
     print("[")
     print()
-    for module_name, match in itertools.groupby(devices_expanded, match_module):
+    for module_name, match in itertools.groupby(sorted(requests_matched, key=match_module), match_module):
         if module_name is None:
             continue
         for device, c in match:
             print(f"  # {device.name} compatible=\"{c}\"")
         print(f"  \"{module_name}\"")
         print()
+
+    for d in devices:
+        if d.name in devices_matched:
+            continue
+        print(f"  # unmatched #{d}")
     print("]")
