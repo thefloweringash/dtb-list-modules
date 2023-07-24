@@ -14,7 +14,7 @@ parser.add_argument("--dtb", type=str, required=True, help="the dtb file to pars
 parser.add_argument("--modalias", type=str, required=True, help="the modules.alias file")
 args = parser.parse_args()
 
-device = namedtuple('device', 'name compatible')
+device = namedtuple('device', 'name compatible status')
 
 def all_nodes(fdt):
     def go(parent_node_offset):
@@ -49,7 +49,18 @@ def all_devices(fdt):
 
         node_name = fdt.get_name(node_offset)
         prop_strings = [x.decode('utf-8') for x in prop.split(b'\0')[:-1]]
-        yield device(node_name, prop_strings)
+
+        status = fdt.getprop(
+            node_offset,
+            'status',
+            quiet=[libfdt.FDT_ERR_NOTFOUND]
+        )
+        if status != -1:
+            status_strings = status.decode('utf-8').rstrip('\x00')
+        else:
+            status_strings = None
+
+        yield device(node_name, prop_strings, status_strings)
 
 # TODO: this must be in the library somewhere
 def lines(file):
@@ -109,5 +120,8 @@ if __name__ == '__main__':
     for d in devices:
         if d.name in devices_matched:
             continue
-        print(f"  # unmatched #{d}")
+        elif d.status == "disabled":
+            print(f"  # disabled unmatched #{d}")
+        else:
+            print(f"  # unmatched #{d}")
     print("]")
